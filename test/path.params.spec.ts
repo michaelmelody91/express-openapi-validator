@@ -17,17 +17,18 @@ describe('path params', () => {
       },
       3005,
       (app) => {
-        app.get(`${app.basePath}/users/:id?`, (req, res) => {
+        app.get(
+          [`${app.basePath}/users/:id?`, `${app.basePath}/users_alt/:id?`],
+          (req, res) => {
+            res.json({
+              id: req.params.id,
+            });
+          },
+        );
+        app.get(`${app.basePath}/user_lookup\\::name`, (req, res) => {
           res.json({
-            id: req.params.id,
+            id: req.params.name,
           });
-        });
-        app.get(`${app.basePath}/users:lookup`, (req, res) => {
-          res.json([
-            {
-              id: req.query.name,
-            },
-          ]);
         });
         app.get(`${app.basePath}/multi_users/:ids?`, (req, res) => {
           res.json({
@@ -35,7 +36,6 @@ describe('path params', () => {
           });
         });
         app.use((err, req, res, next) => {
-          console.error(err)
           res.status(err.status ?? 500).json({
             message: err.message,
             code: err.status ?? 500,
@@ -44,16 +44,24 @@ describe('path params', () => {
       },
       false,
     );
-    return app
+    return app;
   });
 
   after(() => {
     app.server.close();
   });
 
-  it('should url decode path parameters', async () =>
+  it('should url decode path parameters (type level)', async () =>
     request(app)
       .get(`${app.basePath}/users/c%20dimascio`)
+      .expect(200)
+      .then((r) => {
+        expect(r.body.id).to.equal('c dimascio');
+      }));
+
+  it('should url decode path parameters (path level)', async () =>
+    request(app)
+      .get(`${app.basePath}/users_alt/c%20dimascio`)
       .expect(200)
       .then((r) => {
         expect(r.body.id).to.equal('c dimascio');
@@ -69,11 +77,9 @@ describe('path params', () => {
 
   it("should handle :'s in path parameters", async () =>
     request(app)
-      .get(`${app.basePath}/users:lookup`)
-      .query({ name: 'carmine' })
+      .get(`${app.basePath}/user_lookup:carmine`)
       .expect(200)
       .then((r) => {
-        expect(r.body).to.be.an('array');
-        expect(r.body[0].id).to.equal('carmine');
+        expect(r.body.id).to.equal('carmine');
       }));
 });

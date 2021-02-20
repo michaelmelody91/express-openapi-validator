@@ -91,7 +91,7 @@ describe(packageJson.name, () => {
             expect(r.body)
               .to.have.property('message')
               .that.equals(
-                "Parameter 'testJson' must be url encoded. It's value may not contain reserved characters.",
+                "Parameter 'testJson' must be url encoded. Its value may not contain reserved characters.",
               );
           }));
 
@@ -150,7 +150,7 @@ describe(packageJson.name, () => {
             expect(r.body)
               .to.have.property('message')
               .that.equals(
-                "Parameter 'testArray' must be url encoded. It's value may not contain reserved characters.",
+                "Parameter 'testArray' must be url encoded. Its value may not contain reserved characters.",
               );
           }));
 
@@ -176,7 +176,6 @@ describe(packageJson.name, () => {
           .expect('Content-Type', /json/)
           .expect(400)
           .then(r => {
-            console.log(r.body);
             const e = r.body.errors;
             expect(e).to.have.length(1);
             expect(e[0].path).to.contain('testArray');

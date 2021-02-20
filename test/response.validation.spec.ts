@@ -19,11 +19,20 @@ describe(packageJson.name, () => {
       },
       3005,
       (app) => {
+        app.get(`${app.basePath}/error`, (req, res) => {
+          return res.status(400).json({
+            message: 'test',
+            code: 400,
+          });
+        });
         app.get(`${app.basePath}/ref_response_body`, (req, res) => {
           return res.json({ id: 213, name: 'name', kids: [] });
         });
         app.get(`${app.basePath}/empty_response`, (req, res) => {
-          return res.end();
+          return res.status(204).send();
+        });
+        app.get(`${app.basePath}/boolean`, (req, res) => {
+          return res.json(req.query.value);
         });
         app.get(`${app.basePath}/object`, (req, res) => {
           return res.json([
@@ -31,7 +40,9 @@ describe(packageJson.name, () => {
           ]);
         });
         app.post(`${app.basePath}/object`, (req, res) => {
-          return res.json(req.body);
+          return req.query.mode === 'array'
+            ? res.json([req.body])
+            : res.json(req.body);
         });
         app.get(`${app.basePath}/users`, (req, res) => {
           const json = ['user1', 'user2', 'user3'];
@@ -64,7 +75,6 @@ describe(packageJson.name, () => {
           res.json(req.body);
         });
         app.use((err, req, res, next) => {
-          console.error(err);
           res.status(err.status ?? 500).json({
             message: err.message,
             code: err.status ?? 500,
@@ -82,6 +92,15 @@ describe(packageJson.name, () => {
   it('should return 200 on valid responses 200 $ref', async () =>
     request(app)
       .get(`${app.basePath}/ref_response_body`)
+      .expect(200)
+      .then((r: any) => {
+        expect(r.body.id).to.be.a('number').that.equals(213);
+      }));
+
+  it('should return 200 on valid responses 200 $ref', async () =>
+    request(app)
+      .get(`${app.basePath}/ref_response_body`)
+      .set('Accept', 'APPLICATION/JSON')
       .expect(200)
       .then((r: any) => {
         expect(r.body.id).to.be.a('number').that.equals(213);
@@ -106,28 +125,32 @@ describe(packageJson.name, () => {
         expect(r.body).to.have.property('code').that.equals(500);
       }));
 
-  // TODO fix me - fails for response and request validation what allOf is in use
-  it.skip('should fail if request is array when expecting object', async () =>
+  it.skip('should fail if response expects object (using allOf), but got array', async () =>
     request(app)
-      .post(`${app.basePath}/object`)
-      .send([{ id: 1, name: 'name', tag: 'tag', bought_at: null }])
-      .expect(400)
+      .post(`${app.basePath}/object?mode=array`)
+      .send({ id: 1, name: 'fido' })
+      .expect(500)
       .then((r: any) => {
         expect(r.body.message).to.contain('should be object');
         expect(r.body).to.have.property('code').that.equals(500);
       }));
 
-  it('should fail if response is response is empty object', async () =>
+  it('should return 200 if returns expect object (using allOf) with type object', async () =>
+    request(app)
+      .post(`${app.basePath}/object`)
+      .send({ id: 1, name: 'fido' })
+      .expect(200));
+
+  it('should fail if response is empty object', async () =>
     request(app)
       .get(`${app.basePath}/pets?mode=empty_object`)
       .expect(500)
       .then((r: any) => {
-        console.log(r.body);
         expect(r.body.message).to.contain('should be array');
         expect(r.body).to.have.property('code').that.equals(500);
       }));
 
-  it('should fail if response is response is empty', async () =>
+  it('should fail if response is empty', async () =>
     request(app)
       .get(`${app.basePath}/pets?mode=empty_response`)
       .expect(500)
@@ -136,8 +159,22 @@ describe(packageJson.name, () => {
         expect(r.body).to.have.property('code').that.equals(500);
       }));
 
-  it('should return 200 for endpoints that return empty response', async () =>
-    request(app).get(`${app.basePath}/empty_response`).expect(200));
+  it('should return throw 500 on invalid error response', async () =>
+    request(app)
+      .get(`${app.basePath}/error`)
+      .expect(500)
+      .then((r) => {
+        expect(r.body.message).to.include('required property');
+      }));
+
+  it('should return 204 for endpoints that return empty response', async () =>
+    request(app)
+      .get(`${app.basePath}/empty_response`)
+      .expect(204)
+      .then((r) => {
+        console.log(r.body);
+        expect(r.body).to.be.empty;
+      }));
 
   it('should fail if additional properties are provided when set false', async () =>
     request(app)
@@ -196,5 +233,21 @@ describe(packageJson.name, () => {
       .expect(200)
       .then((r: any) => {
         expect(r.body).is.an('array').with.length(3);
+      }));
+
+  it('should be able to return `true` as the response body', async () =>
+    request(app)
+      .get(`${app.basePath}/boolean?value=true`)
+      .expect(200)
+      .then((r: any) => {
+        expect(r.body).to.equal(true);
+      }));
+
+  it('should be able to return `false` as the response body', async () =>
+    request(app)
+      .get(`${app.basePath}/boolean?value=false`)
+      .expect(200)
+      .then((r: any) => {
+        expect(r.body).to.equal(false);
       }));
 });

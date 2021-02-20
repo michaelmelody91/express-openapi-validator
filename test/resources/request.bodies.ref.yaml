@@ -8,6 +8,27 @@ servers:
   - url: /v1/
 
 paths:
+  /415_test:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                id:
+                  type: string
+      responses:
+        '200':
+          description: OK
+
+  /coercion_test:
+    post:
+      requestBody:
+        $ref: '#/components/requestBodies/CoercionTestBody'
+      responses:
+        '200':
+          description: OK
+
   /request_bodies_ref:
     post:
       parameters:
@@ -67,6 +88,11 @@ components:
           format: phone-number
       required:
         - testPropertyTwo
+    CoercionTest:
+      type: object
+      properties:
+        aNumberProperty:
+          type: number
 
   requestBodies:
     TestBody:
@@ -93,3 +119,9 @@ components:
         '*/*':
           schema:
             type: string
+    CoercionTestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CoercionTest'

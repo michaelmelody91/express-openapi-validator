@@ -1,4 +1,4 @@
-import { Ajv } from 'ajv';
+import { Ajv, ValidateFunction } from 'ajv';
 import { createRequestAjv } from '../framework/ajv';
 import {
   ContentType,
@@ -7,7 +7,6 @@ import {
 } from './util';
 import { NextFunction, RequestHandler, Response } from 'express';
 import {
-  ValidationSchema,
   OpenAPIV3,
   OpenApiRequest,
   RequestValidatorOptions,
@@ -16,6 +15,9 @@ import {
   NotFound,
   MethodNotAllowed,
   BadRequest,
+  ParametersSchema,
+  BodySchema,
+  ValidationSchema,
 } from '../framework/types';
 import { BodySchemaParser } from './parsers/body.parse';
 import { ParametersSchemaParser } from './parsers/schema.parse';
@@ -32,6 +34,7 @@ export class RequestValidator {
   private middlewareCache: { [key: string]: RequestHandler } = {};
   private apiDoc: OpenAPIV3.Document;
   private ajv: Ajv;
+  private ajvBody: Ajv;
   private requestOpts: ValidateRequestOpts = {};
 
   constructor(
@@ -42,7 +45,8 @@ export class RequestValidator {
     this.apiDoc = apiDoc;
     this.requestOpts.allowUnknownQueryParameters =
       options.allowUnknownQueryParameters;
-    this.ajv = createRequestAjv(apiDoc, options);
+    this.ajv = createRequestAjv(apiDoc, { ...options, coerceTypes: true });
+    this.ajvBody = createRequestAjv(apiDoc, options);
   }
 
   public validate(
@@ -59,21 +63,7 @@ export class RequestValidator {
 
     const openapi = <OpenApiRequestMetadata>req.openapi;
     const path = openapi.expressRoute;
-    if (!path) {
-      throw new NotFound({
-        path: req.path,
-        message: 'not found',
-      });
-    }
-
     const reqSchema = openapi.schema;
-    if (!reqSchema) {
-      throw new MethodNotAllowed({
-        path: req.path,
-        message: `${req.method} method not allowed`,
-      });
-    }
-
     // cache middleware by combining method, path, and contentType
     const contentType = ContentType.from(req);
     const contentTypeKey = contentType.equivalents()[0] ?? 'not_provided';
@@ -94,50 +84,54 @@ export class RequestValidator {
   ): RequestHandler {
     const apiDoc = this.apiDoc;
     const schemaParser = new ParametersSchemaParser(this.ajv, apiDoc);
-    const bodySchemaParser = new BodySchemaParser(this.ajv, apiDoc);
     const parameters = schemaParser.parse(path, reqSchema.parameters);
     const securityQueryParam = Security.queryParam(apiDoc, reqSchema);
-    const body = bodySchemaParser.parse(path, reqSchema, contentType);
+    const body = new BodySchemaParser().parse(path, reqSchema, contentType);
+    const validator = new Validator(this.apiDoc, parameters, body, {
+      general: this.ajv,
+      body: this.ajvBody,
+    });
 
-    const isBodyBinary = body?.['format'] === 'binary';
-    const properties: ValidationSchema = {
-      ...parameters,
-      body: isBodyBinary ? {} : body,
-    };
-    // TODO throw 400 if missing a required binary body
-    const required =
-      (<SchemaObject>body).required && !isBodyBinary ? ['body'] : [];
-    // $schema: "http://json-schema.org/draft-04/schema#",
-    const schema = {
-      paths: this.apiDoc.paths,
-      components: this.apiDoc.components,
-      required: ['query', 'headers', 'params'].concat(required),
-      properties,
-    };
-
-    const validator = this.ajv.compile(schema);
+    const allowUnknownQueryParameters = !!(
+      reqSchema['x-allow-unknown-query-parameters'] ??
+      this.requestOpts.allowUnknownQueryParameters
+    );
 
     return (req: OpenApiRequest, res: Response, next: NextFunction): void => {
       const openapi = <OpenApiRequestMetadata>req.openapi;
-      const hasPathParams = Object.keys(openapi.pathParams).length > 0;
+      const pathParams = Object.keys(openapi.pathParams);
+      const hasPathParams = pathParams.length > 0;
 
       if (hasPathParams) {
+        // handle wildcard path param syntax
+        if (openapi.expressRoute.endsWith('*')) {
+          // if we have an express route /data/:p*, we require a path param, p
+          // if the p param is empty, the user called /p which is not found
+          // if it was found, it would match a different route
+          if (pathParams.filter((p) => openapi.pathParams[p]).length === 0) {
+            throw new NotFound({
+              path: req.path,
+              message: 'not found',
+            });
+          }
+        }
         req.params = openapi.pathParams ?? req.params;
       }
 
+      const schemaPoperties = validator.allSchemaProperties;
       const mutator = new RequestParameterMutator(
         this.ajv,
         apiDoc,
         path,
-        properties,
+        schemaPoperties,
       );
 
       mutator.modifyRequest(req);
 
-      if (!this.requestOpts.allowUnknownQueryParameters) {
+      if (!allowUnknownQueryParameters) {
         this.processQueryParam(
           req.query,
-          schema.properties.query,
+          schemaPoperties.query,
           securityQueryParam,
         );
       }
@@ -149,11 +143,34 @@ export class RequestValidator {
           }
         : undefined;
 
-      const valid = validator({ ...req, cookies });
-      if (valid) {
+      const data = {
+        query: req.query ?? {},
+        headers: req.headers,
+        params: req.params,
+        cookies,
+        body: req.body,
+      };
+      const schemaBody = <any>validator?.schemaBody;
+      const discriminator = schemaBody?.properties?.body?._discriminator;
+      const discriminatorValdiator = this.discriminatorValidator(
+        req,
+        discriminator,
+      );
+
+      const validatorBody = discriminatorValdiator ?? validator.validatorBody;
+      const valid = validator.validatorGeneral(data);
+      const validBody = validatorBody(
+        discriminatorValdiator ? data.body : data,
+      );
+
+      if (valid && validBody) {
         next();
       } else {
-        const errors = augmentAjvErrors([...(validator.errors ?? [])]);
+        const errors = augmentAjvErrors(
+          []
+            .concat(validator.validatorGeneral.errors ?? [])
+            .concat(validatorBody.errors ?? []),
+        );
         const err = ajvErrorsToValidatorError(400, errors);
         const message = this.ajv.errorsText(errors, { dataVar: 'request' });
         const error: BadRequest = new BadRequest({
@@ -166,17 +183,39 @@ export class RequestValidator {
     };
   }
 
-  private processQueryParam(query, schema, whiteList: string[] = []) {
-    const keys = schema.properties ? Object.keys(schema.properties) : [];
+  private discriminatorValidator(req, discriminator) {
+    if (discriminator) {
+      const { options, property, validators } = discriminator;
+      const discriminatorValue = req.body[property]; // TODO may not alwasy be in this position
+      if (options.find((o) => o.option === discriminatorValue)) {
+        return validators[discriminatorValue];
+      } else {
+        throw new BadRequest({
+          path: req.path,
+          message: `'${property}' should be equal to one of the allowed values: ${options
+            .map((o) => o.option)
+            .join(', ')}.`,
+        });
+      }
+    }
+    return null;
+  }
+  private processQueryParam(query: object, schema, whiteList: string[] = []) {
+    const entries = Object.entries(schema.properties ?? {});
+    let keys = [];
+    for (const [key, prop] of entries) {
+      if (prop['type'] === 'object' && prop['additionalProperties']) {
+        // we have an object that allows additional properties
+        return;
+      }
+      keys.push(key);
+    }
     const knownQueryParams = new Set(keys);
     whiteList.forEach((item) => knownQueryParams.add(item));
     const queryParams = Object.keys(query);
     const allowedEmpty = schema.allowEmptyValue;
     for (const q of queryParams) {
-      if (
-        !this.requestOpts.allowUnknownQueryParameters &&
-        !knownQueryParams.has(q)
-      ) {
+      if (!knownQueryParams.has(q)) {
         throw new BadRequest({
           path: `.query.${q}`,
           message: `Unknown query parameter '${q}'`,
@@ -188,6 +227,67 @@ export class RequestValidator {
         });
       }
     }
+  }
+}
+
+class Validator {
+  private readonly apiDoc: OpenAPIV3.Document;
+  readonly schemaGeneral: object;
+  readonly schemaBody: object;
+  readonly validatorGeneral: ValidateFunction;
+  readonly validatorBody: ValidateFunction;
+  readonly allSchemaProperties: ValidationSchema;
+
+  constructor(
+    apiDoc: OpenAPIV3.Document,
+    parametersSchema: ParametersSchema,
+    bodySchema: BodySchema,
+    ajv: {
+      general: Ajv;
+      body: Ajv;
+    },
+  ) {
+    this.apiDoc = apiDoc;
+    this.schemaGeneral = this._schemaGeneral(parametersSchema);
+    this.schemaBody = this._schemaBody(bodySchema);
+    this.allSchemaProperties = {
+      ...(<any>this.schemaGeneral).properties, // query, header, params props
+      body: (<any>this.schemaBody).properties.body, // body props
+    };
+    this.validatorGeneral = ajv.general.compile(this.schemaGeneral);
+    this.validatorBody = ajv.body.compile(this.schemaBody);
+  }
+
+  private _schemaGeneral(parameters: ParametersSchema): object {
+    // $schema: "http://json-schema.org/draft-04/schema#",
+    return {
+      paths: this.apiDoc.paths,
+      components: this.apiDoc.components,
+      required: ['query', 'headers', 'params'],
+      properties: { ...parameters, body: {} },
+    };
+  }
+
+  private _schemaBody(body: BodySchema): object {
+    // $schema: "http://json-schema.org/draft-04/schema#"
+    const isBodyBinary = body?.['format'] === 'binary';
+    const bodyProps = isBodyBinary ? {} : body;
+    const bodySchema = {
+      paths: this.apiDoc.paths,
+      components: this.apiDoc.components,
+      properties: {
+        query: {},
+        headers: {},
+        params: {},
+        cookies: {},
+        body: bodyProps,
+      },
+    };
+    const requireBody = (<SchemaObject>body).required && !isBodyBinary;
+    if (requireBody) {
+      (<any>bodySchema).required = ['body'];
+    }
+    return bodySchema;
   }
 }
 

@@ -31,21 +31,28 @@ export type SecurityHandlers = {
   ) => boolean | Promise<boolean>;
 };
 
-export interface MultipartOpts extends ajv.Options
-{
-  multerOpts: any;
+export interface MultipartOpts {
+  multerOpts: boolean | multer.Options;
+  ajvOpts: Options;
 }
 
-export interface RequestValidatorOptions
-  extends ajv.Options,
-    ValidateRequestOpts {}
+export interface Options extends ajv.Options {
+  // Specific options
+  serDesMap?: SerDesMap;
+}
+
+export interface RequestValidatorOptions extends Options, ValidateRequestOpts {}
 
 export type ValidateRequestOpts = {
   allowUnknownQueryParameters?: boolean;
+  coerceTypes?: boolean | 'array';
+  removeAdditional?: boolean | 'all' | 'failing';
 };
 
 export type ValidateResponseOpts = {
-  removeAdditional?: 'failing' | boolean;
+  removeAdditional?: boolean | 'all' | 'failing';
+  coerceTypes?: boolean | 'array';
+  onError?: (err: InternalServerError, json: any) => void;
 };
 
 export type ValidateSecurityOpts = {
@@ -53,19 +60,64 @@ export type ValidateSecurityOpts = {
 };
 
 export type OperationHandlerOptions = {
-  basePath: string,
-  resolver: Function
-}
+  basePath: string;
+  resolver: Function;
+};
+
+export type Format = {
+  name: string;
+  type?: 'number' | 'string';
+  validate: (v: any) => boolean;
+};
+
+export type SerDes = {
+  format: string;
+  serialize?: (o: unknown) => string;
+  deserialize?: (s: string) => unknown;
+};
+
+export class SerDesSingleton implements SerDes {
+  serializer: SerDes;
+  deserializer: SerDes;
+  format: string;
+  serialize?: (o: unknown) => string;
+  deserialize?: (s: string) => unknown;
+
+  constructor(param: {
+    format: string;
+    serialize: (o: unknown) => string;
+    deserialize: (s: string) => unknown;
+  }) {
+    this.format = param.format;
+    this.serialize = param.serialize;
+    this.deserialize = param.deserialize;
+    this.deserializer = {
+      format : param.format,
+      deserialize : param.deserialize
+    }
+    this.serializer = {
+      format : param.format,
+      serialize : param.serialize
+    }
+  }
+};
+
+export type SerDesMap = {
+  [format: string]: SerDes
+};
 
 export interface OpenApiValidatorOpts {
   apiSpec: OpenAPIV3.Document | string;
+  validateApiSpec?: boolean;
   validateResponses?: boolean | ValidateResponseOpts;
   validateRequests?: boolean | ValidateRequestOpts;
   validateSecurity?: boolean | ValidateSecurityOpts;
-  ignorePaths?: RegExp;
+  ignorePaths?: RegExp | Function;
   securityHandlers?: SecurityHandlers;
   coerceTypes?: boolean | 'array';
   unknownFormats?: true | string[] | 'ignore';
+  serDes?: SerDes[];
+  formats?: Format[];
   fileUploader?: boolean | multer.Options;
   multerOpts?: multer.Options;
   $refParser?: {
@@ -194,7 +246,7 @@ export namespace OpenAPIV3 {
     items: ReferenceObject | SchemaObject;
   }
 
-  interface NonArraySchemaObject extends BaseSchemaObject {
+  export interface NonArraySchemaObject extends BaseSchemaObject {
     type: NonArraySchemaObjectType;
   }
 
@@ -237,6 +289,9 @@ export namespace OpenAPIV3 {
     externalDocs?: ExternalDocumentationObject;
     example?: any;
     deprecated?: boolean;
+
+    // Express-openapi-validator specific properties
+    componentId?: string;
   }
 
   export interface DiscriminatorObject {
@@ -391,7 +446,7 @@ export interface OpenAPIFrameworkPathObject {
 
 interface OpenAPIFrameworkArgs {
   apiDoc: OpenAPIV3.Document | string;
-  validateApiDoc?: boolean;
+  validateApiSpec?: boolean;
   $refParser?: {
     mode: 'bundle' | 'dereference';
   };
@@ -415,7 +470,7 @@ export interface OpenApiRequestMetadata {
 }
 
 export interface OpenApiRequest extends Request {
-  openapi?: OpenApiRequestMetadata | {};
+  openapi?: OpenApiRequestMetadata;
 }
 
 export type OpenApiRequestHandler = (
@@ -515,9 +570,10 @@ export class HttpError extends Error implements ValidationError {
   }):
     | InternalServerError
     | UnsupportedMediaType
-    | RequestEntityToLarge
+    | RequestEntityTooLarge
     | BadRequest
     | MethodNotAllowed
+    | NotAcceptable
     | NotFound
     | Unauthorized
     | Forbidden {
@@ -532,8 +588,10 @@ export class HttpError extends Error implements ValidationError {
         return new NotFound(err);
       case 405:
         return new MethodNotAllowed(err);
+      case 406:
+        return new NotAcceptable(err);
       case 413:
-        return new RequestEntityToLarge(err);
+        return new RequestEntityTooLarge(err);
       case 415:
         return new UnsupportedMediaType(err);
       default:
@@ -553,6 +611,21 @@ export class NotFound extends HttpError {
       path: err.path,
       message: err.message,
       name: 'Not Found',
+    });
+  }
+}
+
+export class NotAcceptable extends HttpError {
+  constructor(err: {
+    path: string;
+    message?: string;
+    overrideStatus?: number;
+  }) {
+    super({
+      status: err.overrideStatus || 406,
+      path: err.path,
+      name: 'Not Acceptable',
+      message: err.message,
     });
   }
 }
@@ -589,7 +662,7 @@ export class BadRequest extends HttpError {
   }
 }
 
-export class RequestEntityToLarge extends HttpError {
+export class RequestEntityTooLarge extends HttpError {
   constructor(err: {
     path: string;
     message?: string;

@@ -1,6 +1,6 @@
 # 🦋 express-openapi-validator
 
-[![](https://travis-ci.org/cdimascio/express-openapi-validator.svg?branch=master)](#) [![](https://img.shields.io/npm/v/express-openapi-validator.svg)](https://www.npmjs.com/package/express-openapi-validator) [![](https://img.shields.io/npm/v/express-openapi-validator/beta.svg)](https://github.com/cdimascio/express-openapi-validator/tree/v4) [![](https://img.shields.io/npm/dm/express-openapi-validator?color=blue)](https://www.npmjs.com/package/express-openapi-validator) [![All Contributors](https://img.shields.io/badge/all_contributors-28-darkcyan.svg?style=flat)](#contributors) [![Coverage Status](https://coveralls.io/repos/github/cdimascio/express-openapi-validator/badge.svg?branch=master)](https://coveralls.io/github/cdimascio/express-openapi-validator?branch=master) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/1570a06f609345ddb237114bbd6ceed7)](https://www.codacy.com/manual/cdimascio/express-openapi-validator?utm_source=github.com&utm_medium=referral&utm_content=cdimascio/express-openapi-validator&utm_campaign=Badge_Grade) [![](https://img.shields.io/gitter/room/cdimascio-oss/community?color=%23eb205a)](https://gitter.im/cdimascio-oss/community) [![Gitpod Ready-to-Code](https://img.shields.io/badge/Gitpod-Ready--to--Code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/cdimascio/express-openapi-validator) [![](https://img.shields.io/badge/license-MIT-blue.svg)](#license)
+[![](https://travis-ci.org/cdimascio/express-openapi-validator.svg?branch=master)](#) [![](https://img.shields.io/npm/v/express-openapi-validator.svg)](https://www.npmjs.com/package/express-openapi-validator) [![](https://img.shields.io/npm/dm/express-openapi-validator?color=blue)](https://www.npmjs.com/package/express-openapi-validator) [![All Contributors](https://img.shields.io/badge/all_contributors-42-darkcyan.svg?style=flat)](#contributors) [![Coverage Status](https://coveralls.io/repos/github/cdimascio/express-openapi-validator/badge.svg?branch=master)](https://coveralls.io/github/cdimascio/express-openapi-validator?branch=master) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/1570a06f609345ddb237114bbd6ceed7)](https://www.codacy.com/manual/cdimascio/express-openapi-validator?utm_source=github.com&utm_medium=referral&utm_content=cdimascio/express-openapi-validator&utm_campaign=Badge_Grade) [![](https://img.shields.io/gitter/room/cdimascio-oss/community?color=%23eb205a)](https://gitter.im/cdimascio-oss/community) [![Gitpod Ready-to-Code](https://img.shields.io/badge/Gitpod-Ready--to--Code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/cdimascio/express-openapi-validator) [![](https://img.shields.io/badge/license-MIT-blue.svg)](#license)
 
 **An OpenApi validator for ExpressJS** that automatically validates **API** _**requests**_ and _**responses**_ using an **OpenAPI 3** specification.
 
@@ -15,50 +15,42 @@
 - ✔️ request validation
 - ✔️ response validation (json only)
 - 👮 security validation / custom security functions
-- 👽 3rd party / custom formats
+- 👽 3rd party / custom formats / custom data serialization-deserialization
 - 🧵 optionally auto-map OpenAPI endpoints to Express handler functions
 - ✂️ **\$ref** support; split specs over multiple files
 - 🎈 file upload
 
 [![GitHub stars](https://img.shields.io/github/stars/cdimascio/express-openapi-validator.svg?style=social&label=Star&maxAge=2592000)](https://GitHub.com/cdimascio/express-openapi-validator/stargazers/) [![Twitter URL](https://img.shields.io/twitter/url/https/github.com/cdimascio/express-openapi-validator.svg?style=social)](https://twitter.com/intent/tweet?text=Check%20out%20express-openapi-validator%20by%20%40CarmineDiMascio%20https%3A%2F%2Fgithub.com%2Fcdimascio%2Fexpress-openapi-validator%20%F0%9F%91%8D)
 
-
-### 📢 [`4.0.0-beta.2` available!](https://github.com/cdimascio/express-openapi-validator/tree/v4) 📢
-
-Installs as standard connect middleware. Please provide your feedback [here](https://github.com/cdimascio/express-openapi-validator/pull/351).
-
-```shell
-npm i express-openapi-validator@4.0.0-beta.2
-```
-
-- See [Usage and Documentation for 4.0.0-beta.2](https://github.com/cdimascio/express-openapi-validator/blob/v4/README.md)
-- See [Examples for 4.0.0-beta.1](https://github.com/cdimascio/express-openapi-validator/tree/v4/examples)
-- Please provide [feedback](https://github.com/cdimascio/express-openapi-validator/pull/351) and submit any [issues](https://github.com/cdimascio/express-openapi-validator/issues) encountered. Thanks!
-
+[Koa](https://github.com/cdimascio/express-openapi-validator/tree/lerna-fastify/packages/koa-openapi-validator) and [Fastify](https://github.com/cdimascio/express-openapi-validator/tree/lerna-fastify/packages/fastify-openapi-validator) now available! 🚀
 
 ## Install
 
 ```shell
-npm i express-openapi-validator
+npm install express-openapi-validator
 ```
 
 ## Usage
 
-[🦋express-openapi-validator](https://github.com/cdimascio/express-openapi-validator) may be used asynchronously ([promises](#promise), [async/await](#asyncawait), [callbacks](#callback)) or [synchronously](#synchronous). See a complete [example](#example-express-api-server).
-
-#### Async/Await
-
-1. Install the openapi validator
+1. Require/import the openapi validator
 
 ```javascript
-await new OpenApiValidator({
-  apiSpec: './test/resources/openapi.yaml',
-  validateRequests: true, // (default)
-  validateResponses: true, // false by default
-}).install(app);
+const OpenApiValidator = require('express-openapi-validator');
 ```
 
-2. Register an error handler
+2. Install the middleware
+
+```javascript
+app.use(
+  OpenApiValidator.middleware({
+    apiSpec: './openapi.yaml',
+    validateRequests: true, // (default)
+    validateResponses: true, // false by default
+  }),
+);
+```
+
+3. Register an error handler
 
 ```javascript
 app.use((err, req, res, next) => {
@@ -70,11 +62,13 @@ app.use((err, req, res, next) => {
 });
 ```
 
-_**Important Note:** Ensure express is configured with all relevant body parsers. Body parser middleware functions must be specified prior to any validated routes. See an [example](#example-express-api-server)_.
+_**Important:** Ensure express is configured with all relevant body parsers. Body parser middleware functions must be specified prior to any validated routes. See an [example](#example-express-api-server)_.
+
+## Upgrading from 3.x
+
+In v4.x.x, the validator is installed as standard connect middleware using `app.use(...) and/or router.use(...)` ([example](https://github.com/cdimascio/express-openapi-validator/blob/v4/README.md#Example-Express-API-Server)). This differs from the v3.x.x the installation which required the `install` method(s). The `install` methods no longer exist in v4.
 
 ## Usage (options)
-
-See examples using [promises](#promise) and [callbacks](#callback). Or use it [synchronously](#synchronous)
 
 See [Advanced Usage](#Advanced-Usage) options to:
 
@@ -100,7 +94,7 @@ const http = require('http');
 const app = express();
 
 // 1. Import the express-openapi-validator library
-const { OpenApiValidator } = require('express-openapi-validator');
+const OpenApiValidator = require('express-openapi-validator');
 
 // 2. Set up body parsers for the request body types you expect
 //    Must be specified prior to endpoints in 5.
@@ -113,57 +107,55 @@ const spec = path.join(__dirname, 'api.yaml');
 app.use('/spec', express.static(spec));
 
 // 4. Install the OpenApiValidator onto your express app
-new OpenApiValidator({
-  apiSpec: './api.yaml',
-  validateResponses: true, // <-- to validate responses
-  // unknownFormats: ['my-format'] // <-- to provide custom formats
-})
-  .install(app)
-  .then(() => {
-    // 5. Define routes using Express
-    app.get('/v1/pets', function (req, res, next) {
-      res.json([
-        { id: 1, name: 'max' },
-        { id: 2, name: 'mini' },
-      ]);
-    });
+app.use(
+  OpenApiValidator.middleware({
+    apiSpec: './api.yaml',
+    validateResponses: true, // <-- to validate responses
+  }),
+);
 
-    app.post('/v1/pets', function (req, res, next) {
-      res.json({ name: 'sparky' });
-    });
+// 5. Define routes using Express
+app.get('/v1/pets', function (req, res, next) {
+  res.json([
+    { id: 1, type: 'cat', name: 'max' },
+    { id: 2, type: 'cat', name: 'mini' },
+  ]);
+});
 
-    app.get('/v1/pets/:id', function (req, res, next) {
-      res.json({ id: req.params.id, name: 'sparky' });
-    });
+app.post('/v1/pets', function (req, res, next) {
+  res.json({ name: 'sparky', type: 'dog' });
+});
 
-    // 5a. Define route(s) to upload file(s)
-    app.post('/v1/pets/:id/photos', function (req, res, next) {
-      // files are found in req.files
-      // non-file multipart params can be found as such: req.body['my-param']
+app.get('/v1/pets/:id', function (req, res, next) {
+  res.json({ id: req.params.id, type: 'dog', name: 'sparky' });
+});
 
-      res.json({
-        files_metadata: req.files.map((f) => ({
-          originalname: f.originalname,
-          encoding: f.encoding,
-          mimetype: f.mimetype,
-          // Buffer of file conents
-          buffer: f.buffer,
-        })),
-      });
-    });
-
-    // 6. Create an Express error handler
-    app.use((err, req, res, next) => {
-      // 7. Customize errors
-      console.error(err); // dump error to console for debug
-      res.status(err.status || 500).json({
-        message: err.message,
-        errors: err.errors,
-      });
-    });
-
-    http.createServer(app).listen(3000);
+// 5a. Define route(s) to upload file(s)
+app.post('/v1/pets/:id/photos', function (req, res, next) {
+  // files are found in req.files
+  // non-file multipart params can be found as such: req.body['my-param']
+  res.json({
+    files_metadata: req.files.map((f) => ({
+      originalname: f.originalname,
+      encoding: f.encoding,
+      mimetype: f.mimetype,
+      // Buffer of file conents
+      buffer: f.buffer,
+    })),
   });
+});
+
+// 6. Create an Express error handler
+app.use((err, req, res, next) => {
+  // 7. Customize errors
+  console.error(err); // dump error to console for debug
+  res.status(err.status || 500).json({
+    message: err.message,
+    errors: err.errors,
+  });
+});
+
+http.createServer(app).listen(3000);
 ```
 
 ## [Example Express API Server: with operationHandlers](https://github.com/cdimascio/express-openapi-validator/tree/master/examples/3-eov-operations)
@@ -177,10 +169,12 @@ Use express-openapi-validator's OpenAPI `x-eov-operation-*` vendor extensions. S
 - First, specifiy the `operationHandlers` option to set the base directory that contains your operation handler files.
 
 ```javascript
-new OpenApiValidator({
-  apiSpec,
-  operationHandlers: path.join(__dirname),
-});
+app.use(
+  OpenApiValidator.middleware({
+    apiSpec,
+    operationHandlers: path.join(__dirname),
+  }),
+);
 ```
 
 - Next, use the `x-eov-operation-id` OpenAPI vendor extension or `operationId` to specify the id of operation handler to invoke.
@@ -222,7 +216,7 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const logger = require('morgan');
 const http = require('http');
-const { OpenApiValidator } = require('express-openapi-validator');
+const OpenApiValidator = require('express-openapi-validator');
 
 const port = 3000;
 const app = express();
@@ -238,29 +232,29 @@ app.use(logger('dev'));
 app.use('/spec', express.static(apiSpec));
 
 //  2. Install the OpenApiValidator on your express app
-new OpenApiValidator({
-  apiSpec,
-  validateResponses: true, // default false
-  // 3. Provide the base path to the operation handlers directory
-  operationHandlers: path.join(__dirname), // default false
-})
-  .install(app)
-  .then(() => {
-    // 4. Woah sweet! With auto-wired operation handlers, I don't have to declare my routes!
-    //    See api.yaml for x-eov-* vendor extensions
+app.use(
+  OpenApiValidator.middleware({
+    apiSpec,
+    validateResponses: true, // default false
+    // 3. Provide the base path to the operation handlers directory
+    operationHandlers: path.join(__dirname), // default false
+  }),
+);
 
-    // 5. Create a custom error handler
-    app.use((err, req, res, next) => {
-      // format errors
-      res.status(err.status || 500).json({
-        message: err.message,
-        errors: err.errors,
-      });
-    });
+// 4. Woah sweet! With auto-wired operation handlers, I don't have to declare my routes!
+//    See api.yaml for x-eov-* vendor extensions
 
-    http.createServer(app).listen(port);
-    console.log(`Listening on port ${port}`);
+// 5. Create a custom error handler
+app.use((err, req, res, next) => {
+  // format errors
+  res.status(err.status || 500).json({
+    message: err.message,
+    errors: err.errors,
   });
+});
+
+http.createServer(app).listen(port);
+console.log(`Listening on port ${port}`);
 
 module.exports = app;
 ```
@@ -472,18 +466,18 @@ express-openapi-validator returns the following error codes depending on the sit
 
 ## Advanced Usage
 
-### OpenApiValidator Options
+### OpenApiValidator Middleware Options
 
 express-openapi validator provides a good deal of flexibility via its options.
 
 Options are provided via the options object. Options take the following form:
 
 ```javascript
-new OpenApiValidator(options).install({
+OpenApiValidator.middleware({
   apiSpec: './openapi.yaml',
   validateRequests: true,
   validateResponses: true,
-  validateFormats: 'fast',
+  validateApiSpec: true,
   validateSecurity: {
     handlers: {
       ApiKeyAuth: (req, scopes, schema) => {
@@ -491,13 +485,28 @@ new OpenApiValidator(options).install({
       }
     }
   },
+  validateFormats: 'fast',
+  formats: [{
+    name: 'my-custom-format',
+    type: 'string' | 'number',
+    validate: (value: any) => boolean,
+  }],
+  unknownFormats: ['phone-number', 'uuid'],
+  serDes: [{
+    OpenApiValidator.serdes.dateTime,
+    OpenApiValidator.serdes.date,
+    {
+      format: 'mongo-objectid',
+      deserialize: (s) => new ObjectID(s),
+      serialize: (o) => o.toString(),
+    },
+  }],
   operationHandlers: false | 'operations/base/path' | { ... },
   ignorePaths: /.*\/pets$/,
-  unknownFormats: ['phone-number', 'uuid'],
   fileUploader: { ... } | true | false,
   $refParser: {
     mode: 'bundle'
-  }
+  },
 });
 ```
 
@@ -545,6 +554,61 @@ Determines whether the validator should validate requests.
   }
   ```
 
+  `allowUnknownQueryParameters` is set for the entire validator. It can be overwritten per-operation using
+  a custom property `x-allow-unknown-query-parameters`.
+
+  For example to allow unknown query parameters on ONLY a single endpoint:
+
+  ```yaml
+  paths:
+    /allow_unknown:
+      get:
+        x-allow-unknown-query-parameters: true
+        parameters:
+          - name: value
+            in: query
+            schema:
+              type: string
+        responses:
+          200:
+            description: success
+  ```
+
+  **coerceTypes:**
+
+  Determines whether the validator will coerce the request body. Request query and path params, headers, cookies are coerced by default and this setting does not affect that.
+
+  Options:
+
+  - `true` - coerce scalar data types.
+  - `false` - (**default**) do not coerce types. (more strict, safer)
+  - `"array"` - in addition to coercions between scalar types, coerce scalar data to an array with one element and vice versa (as required by the schema).
+
+  For example:
+
+  ```javascript
+  validateRequests: {
+    coerceTypes: true;
+  }
+  ```
+  
+  **removeAdditional:**
+
+  Determines whether to keep or remove additional properties in request body or to fail validation if schema has `additionalProperties` set to `false`. For futher details, refer to [AJV documentation](https://ajv.js.org/docs/validation.html#removing-additional-properties)
+
+  - `false` (**default**) - not to remove additional properties
+  - `"all"` - all additional properties are removed, regardless of additionalProperties keyword in schema (and no validation is made for them).
+  - `true` - only additional properties with additionalProperties keyword equal to false are removed.
+  - `"failing"` - additional properties that fail request schema validation will be removed (where additionalProperties keyword is false or schema).
+
+  For example:
+
+  ```javascript
+  validateRequests: {
+    removeAdditional: true;
+  }
+  ```
+
 ### ▪️ validateResponses (optional)
 
 Determines whether the validator should validate responses. Also accepts response validation options.
@@ -557,11 +621,32 @@ Determines whether the validator should validate responses. Also accepts respons
 
   - `"failing"` - additional properties that fail schema validation are automatically removed from the response.
 
+  **coerceTypes:**
+
+  - `true` - coerce scalar data types.
+  - `false` - (**default**) do not coerce types. (almost always the desired behavior)
+  - `"array"` - in addition to coercions between scalar types, coerce scalar data to an array with one element and vice versa (as required by the schema).
+
   For example:
 
   ```javascript
   validateResponses: {
     removeAdditional: 'failing';
+  }
+  ```
+
+  **onError:**
+
+  A function that will be invoked on response validation error, instead of the default handling. Useful if you want to log an error or emit a metric, but don't want to actually fail the request. Receives the validation error and offending response body.
+
+  For example:
+
+  ```
+  validateResponses: {
+    onError: (error, body) => {
+      console.log(`Response body fails validation: `, error);
+      console.debug(body);
+    }
   }
   ```
 
@@ -588,6 +673,50 @@ Determines whether the validator should validate securities e.g. apikey, basic, 
   }
   ```
 
+### ▪️ validateApiSpec (optional)
+
+Determines whether the validator should validate the OpenAPI specification. Useful if you are certain that the api spec is syntactically correct and want to bypass this check.
+
+- `true` (**default**) - validate the OpenAPI specification.
+- `false` - do not validate the OpenAPI specification.
+
+
+### ▪️ formats (optional)
+
+Defines a list of custome formats.
+
+- `[{ ... }]` - array of custom format objects. Each object must have the following properties:
+  - name: string (required) - the format name
+  - validate: (v: any) => boolean (required) - the validation function
+  - type: 'string' | 'number' (optional) - the format's type
+
+e.g.
+
+```javascript
+formats: [
+  {
+    name: 'my-three-digit-format',
+    type: 'number',
+    // validate returns true the number has 3 digits, false otherwise
+    validate: (v) => /^\d{3}$/.test(v.toString()),
+  },
+  {
+    name: 'my-three-letter-format',
+    type: 'string',
+    // validate returns true the string has 3 letters, false otherwise
+    validate: (v) => /^[A-Za-z]{3}$/.test(v),
+  },
+];
+```
+
+Then use it in a spec e.g.
+
+```yaml
+my_property:
+  type: string
+  format: my-three-letter-format'
+```
+
 ### ▪️ validateFormats (optional)
 
 Specifies the strictness of validation of string formats.
@@ -609,6 +738,49 @@ Defines how the validator should behave if an unknown or custom format is encoun
   ```
 
 - `"ignore"` - to log warning during schema compilation and always pass validation. This option is not recommended, as it allows to mistype format name and it won't be validated without any error message.
+
+### ▪️ serDes (optional)
+
+Defines custom serialization and deserialization behavior for schemas of type `string` that declare a `format`. By default, `Date` objects are serialized as `string` when a schema's `type` is `string` and `format` is `date` or `date-time`.
+
+e.g.
+
+```javascript
+// If `serDes` is not specified, the following behavior is default
+serDes: [{
+  OpenApiValidator.serdes.dateTime.serializer, 
+  OpenApiValidator.serdes.date.serializer,
+}],
+```
+
+To create custom serializers and/or deserializers, define:
+- `format` (required) - a custom 'unknown' format that triggers the serializer and/or deserializer
+- `deserialize` (optional) - upon receiving a request, transform a string property to an object. Deserialization occurs _after_ request schema validation.
+- `serialize` (optional) - before sending a response, transform an object to string. Serialization occurs _after_ response schema validation
+
+e.g.
+```javascript
+serDes: [{
+   // installs dateTime serializer and deserializer
+  OpenApiValidator.serdes.dateTime,
+  // installs date serializer and deserializer
+  OpenApiValidator.serdes.date, 
+  // custom serializer and deserializer for the custom format, mongo-objectid
+  {
+    format: 'mongo-objectid',
+    deserialize: (s) => new ObjectID(s),
+    serialize: (o) => o.toString(),
+  }
+}],
+```
+
+The mongo serializers will trigger on the following schema:
+```yaml
+  type: string
+  format: mongo-objectid
+```
+ 
+See [mongo-serdes-js](https://github.com/pilerou/mongo-serdes-js) for additional (de)serializers including MongoDB `ObjectID`, `UUID`, ...
 
 ### ▪️ operationHandlers (optional)
 
@@ -677,12 +849,19 @@ module.exports = {
 
 ### ▪️ ignorePaths (optional)
 
-Defines a regular expression that determines whether a path(s) should be ignored. Any path that matches the regular expression will be ignored by the validator.
+Defines a regular expression or function that determines whether a path(s) should be ignored. If it's a regular expression, any path that matches the regular expression will be ignored by the validator. If it's a function, it will ignore any paths that returns a truthy value.
 
-The following ignores any path that ends in `/pets` e.g. `/v1/pets`
+The following ignores any path that ends in `/pets` e.g. `/v1/pets`.
+As a regular expression:
 
 ```
 ignorePaths: /.*\/pets$/
+```
+
+or as a function:
+
+```
+ignorePaths: (path) => path.endsWith('/pets')
 ```
 
 ### ▪️ fileUploader (optional)
@@ -701,14 +880,6 @@ Specifies the options to passthrough to multer. express-openapi-validator uses m
   }
   ```
 
-### ▪️ coerceTypes (optional)
-
-Determines whether the validator should coerce value types to match the type defined in the OpenAPI spec.
-
-- `true` (**default**) - coerce scalar data types.
-- `false` - no type coercion.
-- `"array"` - in addition to coercions between scalar types, coerce scalar data to an array with one element and vice versa (as required by the schema).
-
 ### ▪️ \$refParser.mode (optional)
 
 Determines how JSON schema references are resolved by the internal [json-schema-ref-parser](https://github.com/APIDevTools/json-schema-ref-parser). Generally, the default mode, `bundle` is sufficient, however if you use [escape characters in \$refs](https://swagger.io/docs/specification/using-ref/), `dereference` is necessary.
@@ -725,6 +896,13 @@ $refParser: {
   mode: 'bundle';
 }
 ```
+
+### ▪️ coerceTypes (optional) - _deprecated_
+
+Determines whether the validator should coerce value types to match the those defined in the OpenAPI spec. This option applies **only** to path params, query strings, headers, and cookies. _It is **highly unlikley** that will want to disable this. As such this option is deprecated and will be removed in the next major version_
+
+- `true` (**default**) - coerce scalar data types.
+- `"array"` - in addition to coercions between scalar types, coerce scalar data to an array with one element and vice versa (as required by the schema).
 
 ## The Base URL
 
@@ -858,89 +1036,11 @@ components:
 ```
 
 See [OpenAPI 3](https://swagger.io/docs/specification/authentication/) authentication for `securityScheme` and `security` documentation
-See [examples](https://github.com/cdimascio/express-openapi-validator/blob/security/test/security.spec.ts#L17) from unit tests
-
-## Other Usage Options
-
-In addition to async/await, express-openapi-validator may be used with promises, callbacks, or synchronously.
-
-_**Note:** Ensure express is configured with all relevant body parsers. Body parser middleware functions must be specified prior to any validated routes. See an [example](#example-express-api-server)_.
-
-#### Promise
-
-```javascript
-new OpenApiValidator({
-  apiSpec: './test/resources/openapi.yaml',
-  validateRequests: true, // (default)
-  validateResponses: true, // false by default
-})
-  .install(app)
-  .then((app) => {
-    // define your routes
-
-    // register an error handler
-    app.use((err, req, res, next) => {
-      res.status(err.status || 500).json({
-        message: err.message,
-        errors: err.errors,
-      });
-    });
-  });
-```
-
-#### Callback
-
-```javascript
-new OpenApiValidator({
-  apiSpec: './test/resources/openapi.yaml',
-  validateRequests: true, // (default)
-  validateResponses: true, // false by default
-}).install(app, (err, _) => {
-  // define your routes
-
-  // register an error handler
-  app.use((err, req, res, next) => {
-    res.status(err.status || 500).json({
-      message: err.message,
-      errors: err.errors,
-    });
-  });
-});
-```
-
-#### Synchronous
-
-_Note syncrhonous mode makes use of the [`deasync`](https://github.com/abbr/deasync) module. Some users have experienced issues using deasync with some versions of node. We recommend using the asynchronous method._
-
-**Q:** What does it mean to use the validator 'synchronously'?
-
-**A:** The installation of the validator is handled synchronously; this includes the initial parse and `$ref` resolution of the OpenAPI 3 spec. Note that all validation is executed _**a**synchronously_ i.e. request, response, and security validation. Use `installSync(app)` instead of `install(app)` to install the validator in a blocking manner.
-
-1. Install the openapi validator
-
-```javascript
-new OpenApiValidator({
-  apiSpec: './test/resources/openapi.yaml',
-  validateRequests: true, // (default)
-  validateResponses: true, // false by default
-}).installSync(app);
-```
-
-2. Register an error handler
-
-```javascript
-app.use((err, req, res, next) => {
-  // format error
-  res.status(err.status || 500).json({
-    message: err.message,
-    errors: err.errors,
-  });
-});
-```
+See [examples](https://github.com/cdimascio/express-openapi-validator/blob/master/test/security.handlers.spec.ts#L21) from unit tests
 
 ## Example: Multiple Validators and API specs
 
-It may be useful to serve multiple APIs with separate specs via single service. An exampe might be an API that serves both `v1` and `v2` from the samee service. The sample code below show how one might accomplish this.
+It may be useful to serve multiple APIs with separate specs via single service. An example might be an API that serves both `v1` and `v2` from the same service. The sample code below shows how one might accomplish this.
 
 See complete [example](https://github.com/cdimascio/express-openapi-validator/tree/master/examples/2-standard-multiple-api-specs)
 
@@ -949,36 +1049,39 @@ const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const http = require('http');
-const { OpenApiValidator } = require('express-openapi-validator');
+const OpenApiValidator = require('express-openapi-validator');
 
-async function main() {
-  app = express();
-  app.use(bodyParser.urlencoded({ extended: false }));
-  app.use(bodyParser.text());
-  app.use(bodyParser.json());
+app = express();
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.text());
+app.use(bodyParser.json());
 
-  const versions = [1, 2];
+const versions = [1, 2];
 
-  for (const v of versions) {
-    const apiSpec = path.join(__dirname, `api.v${v}.yaml`);
-    await new OpenApiValidator({
+for (const v of versions) {
+  const apiSpec = path.join(__dirname, `api.v${v}.yaml`);
+  app.use(
+    OpenApiValidator.middleware({
       apiSpec,
-    }).install(app);
+    }),
+  );
 
-    routes(app, v);
-  }
-
-  http.createServer(app).listen(3000);
-  console.log('Listening on port 3000');
+  routes(app, v);
 }
 
-async function routes(app, v) {
+http.createServer(app).listen(3000);
+console.log('Listening on port 3000');
+
+function routes(app, v) {
   if (v === 1) routesV1(app);
   if (v === 2) routesV2(app);
 }
 
-async function routesV1(app) {
+function routesV1(app) {
   const v = '/v1';
+  app.post(`${v}/pets`, (req, res, next) => {
+    res.json({ ...req.body });
+  });
   app.get(`${v}/pets`, (req, res, next) => {
     res.json([
       {
@@ -988,9 +1091,7 @@ async function routesV1(app) {
       },
     ]);
   });
-  app.post(`${v}/pets`, (req, res, next) =>
-    res.json({ ...req.body });
-  });
+
   app.use((err, req, res, next) => {
     // format error
     res.status(err.status || 500).json({
@@ -1000,7 +1101,7 @@ async function routesV1(app) {
   });
 }
 
-async function routesV2(app) {
+function routesV2(app) {
   const v = '/v2';
   app.get(`${v}/pets`, (req, res, next) => {
     res.json([
@@ -1014,6 +1115,7 @@ async function routesV2(app) {
   app.post(`${v}/pets`, (req, res, next) => {
     res.json({ ...req.body });
   });
+
   app.use((err, req, res, next) => {
     // format error
     res.status(err.status || 500).json({
@@ -1023,11 +1125,40 @@ async function routesV2(app) {
   });
 }
 
-main();
 module.exports = app;
 ```
 
 ## FAQ
+
+**Q:** How do I match paths, like those described in RFC-6570?
+
+**A:** OpenAPI 3.0 does not support RFC-6570. That said, we provide a minimalistic mechanism that conforms syntactically to OpenAPI 3 and accomplishes a common use case. For example, matching file paths and storing the matched path in `req.params`
+
+Using the following OpenAPI 3.x defintion
+
+```yaml
+/files/{path}*:
+  get:
+    parameters:
+      - name: path
+        in: path
+        required: true
+        schema:
+          type: string
+```
+
+With the following Express route defintion
+
+```javascript
+  app.get(`/files/:path(*)`, (req, res) => { /* do stuff */ }`
+```
+
+A path like `/files/some/long/path` will pass validation. The Express `req.params.path` property will hold the value `some/long/path`.
+
+**Q:** Can I use discriminators with `oneOf` and `anyOf`?
+
+**A:**
+Currently, there is support for top level discriminators. See [top-level discriminator example](https://github.com/cdimascio/express-openapi-validator/tree/master/examples/8-top-level-discriminator)
 
 **Q:** What happened to the `securityHandlers` property?
 
@@ -1037,17 +1168,9 @@ module.exports = app;
 
 **A**: In v3, `multerOpts` have been replaced by `fileUploader`. In order to use the v3 `fileUploader`, move your multer options to `fileUploader` No other change is required. Note that the v2 `multerOpts` property is supported in v3, but deprecated
 
-**Q:** Can I use a top level await?
-
-**A:** Top-level await is currently a stage 3 proposal, however it can be used today with [babel](https://babeljs.io/docs/en/babel-plugin-syntax-top-level-await)
-
 **Q:** I can disallow unknown query parameters with `allowUnknownQueryParameters: false`. How can disallow unknown body parameters?
 
 **A:** Add `additionalProperties: false` when [describing](https://swagger.io/docs/specification/data-models/keywords/) e.g a `requestBody` to ensure that additional properties are not allowed. For example:
-
-**Q:** I upgraded from from v2 to v3 and validation no longer works. How do I fix it?
-
-**A**: In version 2.x.x, the `install` method was executed synchronously, in 3.x it's executed asynchronously. To get v2 behavior in v3, use the `installSync` method. See the [synchronous](#synchronous) section for details.
 
 ```yaml
 Pet:
@@ -1061,28 +1184,40 @@ properties:
     type: string
 ```
 
+**Q:** I upgraded from from v2 to v3 and validation no longer works. How do I fix it?
+
+**A**: In version 2.x.x, the `install` method was executed synchronously, in 3.x it's executed asynchronously. To get v2 behavior in v3, use the `installSync` method. See the [synchronous](#synchronous) section for details.
+
 **Q:** Can I use `express-openapi-validator` with `swagger-ui-express`?
 
 **A:** Yes. Be sure to `use` the `swagger-ui-express` serve middleware prior to installing `OpenApiValidator`. This will ensure that `swagger-ui-express` is able to fully prepare the spec before before OpenApiValidator attempts to use it. For example:
 
 ```javascript
 const swaggerUi = require('swagger-ui-express')
-const OpenApiValidator = require('express-openapi-validator').OpenApiValidator
+const OpenApiValidator = require('express-openapi-validator')
 
 ...
 
 app.use('/', swaggerUi.serve, swaggerUi.setup(documentation))
 
-new OpenApiValidator({
+app.use(OpenApiValidator.middleware({
   apiSpec, // api spec JSON object
   //... other options
   }
-}).install(app)
+}))
 ```
 
-**Q:** I see `deasync` is installed as an optional dependency. How is deasync used?
+**Q:** I have a handler function defined on an `express.Router`. If i call `req.params` each param value has type `string`. If i define same handler function on an `express.Application`, each value in `req.params` is already coerced to the type declare in my spec. Why not coerce theseF values on an `express.Router`?
 
-**A:** `deasync` is an optional dependency installed. If you install it, it is dynamically loaded if and only if you explicitly call `validator.installSync(app)`. If you don't, it will not be loaded or used.
+**A:** First, it's important to note that this behavior does not impact validation. The validator will validate against the type defined in your spec.
+
+In order to modify the `req.params`, express requires that a param handler be registered e.g. `app.param(...)` or `router.param(...)`. Since `app` is available to middleware functions, the validator registers an `app.param` handler to coerce and modify the values of `req.params` to their declared types. Unfortunately, express does not provide a means to determine the current router from a middleware function, hence the validator is unable to register the same param handler on an express router. Ultimately, this means if your handler function is defined on `app`, the values of `req.params` will be coerced to their declared types. If your handler function is declare on an `express.Router`, the values of `req.params` values will be of type `string` (You must coerce them e.g. `parseInt(req.params.id)`).
+
+## Related Projects
+- [koa-openapi-validator](https://github.com/cdimascio/express-openapi-validator/tree/lerna-fastify/packages/koa-openapi-validator)
+- [fastify-openapi-validator](https://github.com/cdimascio/express-openapi-validator/tree/lerna-fastify/packages/fastify-openapi-validator)
+
+_Note: koa and fastify does not (yet) support response validation or operation handlers
 
 ## Contributors ✨
 
@@ -1134,11 +1269,30 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/codinggosu"><img src="https://avatars0.githubusercontent.com/u/16798331?v=4" width="100px;" alt=""/><br /><sub><b>Lee Dong Joo</b></sub></a><br /><a href="https://github.com/cdimascio/express-openapi-validator/commits?author=codinggosu" title="Documentation">📖</a></td>
     <td align="center"><a href="http://dmitrychekanov.com"><img src="https://avatars3.githubusercontent.com/u/45722?v=4" width="100px;" alt=""/><br /><sub><b>Dmitry Chekanov</b></sub></a><br /><a href="https://github.com/cdimascio/express-openapi-validator/commits?author=dchekanov" title="Code">💻</a> <a href="https://github.com/cdimascio/express-openapi-validator/commits?author=dchekanov" title="Tests">⚠️</a></td>
     <td align="center"><a href="http://dystopian.dev"><img src="https://avatars2.githubusercontent.com/u/12427840?v=4" width="100px;" alt=""/><br /><sub><b>Redhart Azul</b></sub></a><br /><a href="https://github.com/cdimascio/express-openapi-validator/commits?author=dystopiandev" title="Code">💻</a></td>
+    <td align="center"><a href="http://zeekat.nl"><img src="https://avatars1.githubusercontent.com/u/24154?v=4" width="100px;" alt=""/><br /><sub><b>Joost Diepenmaat</b></sub></a><br /><a href="https://github.com/cdimascio/express-openapi-validator/commits?author=joodie" title="Code">💻</a> <a href="https://github.com/cdimascio/express-openapi-validator/commits?author=joodie" title="Tests">⚠️</a></td>
+    <td align="center"><a href="https://github.com/DomParfitt"><img src="https://avatars2.githubusercontent.com/u/11363907?v=4" width="100px;" alt=""/><br /><sub><b>Dom Parfitt</b></sub></a><br /><a href="https://github.com/cdimascio/express-openapi-validator/commits?author=DomParfitt" title="Code">💻</a> <a href="https://github.com/cdimascio/express-openapi-validator/commits?author=DomParfitt" title="Tests">⚠️</a></td>
+    <td align="center"><a href="http://xuguang.info"><img src="https://avatars1.githubusercontent.com/u/1443518?v=4" width="100px;" alt=""/><br /><sub><b>xg1990</b></sub></a><br /><a href="https://github.com/cdimascio/express-openapi-validator/commits?author=xg1990" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/ownagedj"><img src="https://avatars2.githubusercontent.com/u/5887702?v=4" width="100px;" alt=""/><br /><sub><b>ownagedj</b></sub></a><br /><a href="https://github.com/cdimascio/express-openapi-validator/commits?author=ownagedj" title="Code">💻</a> <a href="https://github.com/cdimascio/express-openapi-validator/commits?author=ownagedj" title="Tests">⚠️</a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/dprgarner"><img src="https://avatars2.githubusercontent.com/u/11389185?v=4" width="100px;" alt=""/><br /><sub><b>David Garner</b></sub></a><br /><a href="https://github.com/cdimascio/express-openapi-validator/commits?author=dprgarner" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/balazssoltesz"><img src="https://avatars0.githubusercontent.com/u/52117200?v=4" width="100px;" alt=""/><br /><sub><b>Balazs Soltesz</b></sub></a><br /><a href="https://github.com/cdimascio/express-openapi-validator/commits?author=balazssoltesz" title="Code">💻</a> <a href="https://github.com/cdimascio/express-openapi-validator/commits?author=balazssoltesz" title="Tests">⚠️</a></td>
+    <td align="center"><a href="http://www.christiaannieuwlaat.nl"><img src="https://avatars1.githubusercontent.com/u/3034281?v=4" width="100px;" alt=""/><br /><sub><b>Christiaan Nieuwlaat</b></sub></a><br /><a href="https://github.com/cdimascio/express-openapi-validator/commits?author=krizzje" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/ex1st"><img src="https://avatars1.githubusercontent.com/u/7733915?v=4" width="100px;" alt=""/><br /><sub><b>Ilya</b></sub></a><br /><a href="https://github.com/cdimascio/express-openapi-validator/commits?author=ex1st" title="Code">💻</a> <a href="https://github.com/cdimascio/express-openapi-validator/commits?author=ex1st" title="Tests">⚠️</a></td>
+    <td align="center"><a href="http://aviskase.com"><img src="https://avatars1.githubusercontent.com/u/3819473?v=4" width="100px;" alt=""/><br /><sub><b>Yuliya Bagriy</b></sub></a><br /><a href="https://github.com/cdimascio/express-openapi-validator/commits?author=aviskase" title="Code">💻</a> <a href="https://github.com/cdimascio/express-openapi-validator/commits?author=aviskase" title="Tests">⚠️</a></td>
+    <td align="center"><a href="http://ks.priv.no/"><img src="https://avatars2.githubusercontent.com/u/1738636?v=4" width="100px;" alt=""/><br /><sub><b>Kristjan Siimson</b></sub></a><br /><a href="https://github.com/cdimascio/express-openapi-validator/commits?author=siimsoni" title="Code">💻</a> <a href="https://github.com/cdimascio/express-openapi-validator/commits?author=siimsoni" title="Tests">⚠️</a></td>
+    <td align="center"><a href="https://github.com/LEI"><img src="https://avatars2.githubusercontent.com/u/4112243?v=4" width="100px;" alt=""/><br /><sub><b>Guillaume</b></sub></a><br /><a href="https://github.com/cdimascio/express-openapi-validator/commits?author=LEI" title="Code">💻</a> <a href="https://github.com/cdimascio/express-openapi-validator/commits?author=LEI" title="Tests">⚠️</a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://www.linkedin.com/in/volodymyr-kolesnykov"><img src="https://avatars1.githubusercontent.com/u/7810770?v=4" width="100px;" alt=""/><br /><sub><b>Volodymyr Kolesnykov</b></sub></a><br /><a href="https://github.com/cdimascio/express-openapi-validator/commits?author=sjinks" title="Code">💻</a> <a href="https://github.com/cdimascio/express-openapi-validator/commits?author=sjinks" title="Tests">⚠️</a></td>
+    <td align="center"><a href="https://github.com/pilerou"><img src="https://avatars2.githubusercontent.com/u/664865?v=4" width="100px;" alt=""/><br /><sub><b>Pierre Le Roux</b></sub></a><br /><a href="https://github.com/cdimascio/express-openapi-validator/commits?author=pilerou" title="Code">💻</a> <a href="https://github.com/cdimascio/express-openapi-validator/commits?author=pilerou" title="Tests">⚠️</a> <a href="#ideas-pilerou" title="Ideas, Planning, & Feedback">🤔</a></td>
+    <td align="center"><a href="https://www.spincast.org"><img src="https://avatars2.githubusercontent.com/u/1643012?v=4" width="100px;" alt=""/><br /><sub><b>Electro Type</b></sub></a><br /><a href="#ideas-electrotype" title="Ideas, Planning, & Feedback">🤔</a></td>
   </tr>
 </table>
 
 <!-- markdownlint-enable -->
 <!-- prettier-ignore-end -->
+
 <!-- ALL-CONTRIBUTORS-LIST:END -->
 
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!

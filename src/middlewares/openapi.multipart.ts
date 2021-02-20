@@ -11,18 +11,15 @@ import {
   MultipartOpts,
 } from '../framework/types';
 import { MulterError } from 'multer';
-import ajv = require('ajv');
 
 const multer = require('multer');
 
 export function multipart(
-  context: OpenApiContext,
+  apiDoc: OpenAPIV3.Document,
   options: MultipartOpts,
 ): OpenApiRequestHandler {
   const mult = multer(options.multerOpts);
-  const Ajv = createRequestAjv(context.apiDoc, {
-    unknownFormats: options.unknownFormats,
-  });
+  const Ajv = createRequestAjv(apiDoc, { ...options.ajvOpts });
   return (req, res, next) => {
     // TODO check that format: binary (for upload) else do not use multer.any()
     // use multer.none() if no binary parameters exist
@@ -126,7 +123,7 @@ function error(req: OpenApiRequest, err: Error): ValidationError {
       message: err.message,
     });
     /*return payload_too_big
-      ? new RequestEntityToLarge({ path: req.path, message: err.message })
+      ? new RequestEntityTooLarge({ path: req.path, message: err.message })
       : !unexpected
       ? new BadRequest({ path: req.path, message: err.message })
       : new InternalServerError({ path: req.path, message: err.message });*/

@@ -7,11 +7,8 @@ import {
   NotFound,
   MethodNotAllowed,
   InternalServerError,
-  Unauthorized,
-  Forbidden,
   HttpError,
 } from '../framework/types';
-import { OpenApiContext } from '../framework/openapi.context';
 
 const defaultSecurityHandler = (
   req: Express.Request,
@@ -28,7 +25,7 @@ interface SecurityHandlerResult {
   error?: string;
 }
 export function security(
-  context: OpenApiContext,
+  apiDoc: OpenAPIV3.Document,
   securityHandlers: SecurityHandlers,
 ): OpenApiRequestHandler {
   return async (req, res, next) => {
@@ -41,31 +38,9 @@ export function security(
     }
 
     const openapi = <OpenApiRequestMetadata>req.openapi;
-    const expressRoute = openapi.expressRoute;
-    if (!expressRoute) {
-      return next(
-        new NotFound({
-          path: req.path,
-          message: 'not found',
-        }),
-      );
-    }
-
-    const pathSchema = openapi.schema;
-    if (!pathSchema) {
-      // add openapi metadata to make this case more clear
-      // its not obvious that missig schema means methodNotAllowed
-      return next(
-        new MethodNotAllowed({
-          path: req.path,
-          message: `${req.method} method not allowed`,
-        }),
-      );
-    }
-
     // use the local security object or fallbac to api doc's security or undefined
     const securities: OpenAPIV3.SecurityRequirementObject[] =
-      openapi.schema.security ?? context.apiDoc.security;
+      openapi.schema.security ?? apiDoc.security;
 
     const path: string = openapi.openApiRoute;
 
@@ -73,7 +48,7 @@ export function security(
       return next();
     }
 
-    const securitySchemes = context.apiDoc.components?.securitySchemes;
+    const securitySchemes = apiDoc.components?.securitySchemes;
 
     if (!securitySchemes) {
       const message = `security referenced at path ${path}, but not defined in 'components.securitySchemes'`;
@@ -91,14 +66,44 @@ export function security(
       // This assumes OR only! i.e. at least one security passed authentication
       let firstError: SecurityHandlerResult = null;
       let success = false;
-      for (const r of results) {
-        if (r.success) {
+
+      function checkErrorWithOr(res) {
+        return res.forEach((r) => {
+          if (r.success) {
+            success = true;
+          } else if (!firstError) {
+            firstError = r;
+          }
+        });
+      }
+
+      function checkErrorsWithAnd(res) {
+        let allSuccess = false;
+
+        res.forEach((r) => {
+          if (!r.success) {
+            allSuccess = false;
+            if (!firstError) {
+              firstError = r;
+            }
+          } else if (!firstError) {
+            allSuccess = true;
+          }
+        });
+
+        if (allSuccess) {
           success = true;
-          break;
-        } else if (!firstError) {
-          firstError = r;
         }
       }
+
+      results.forEach((result) => {
+        if (Array.isArray(result) && result.length > 1) {
+          checkErrorsWithAnd(result);
+        } else {
+          checkErrorWithOr(result);
+        }
+      });
+
       if (success) {
         next();
       } else {
@@ -138,62 +143,68 @@ class SecuritySchemes {
 
   public async executeHandlers(
     req: OpenApiRequest,
-  ): Promise<SecurityHandlerResult[]> {
+  ): Promise<(SecurityHandlerResult | SecurityHandlerResult[])[]> {
     // use a fallback handler if security handlers is not specified
     // This means if security handlers is specified, the user must define
     // all security handlers
     const fallbackHandler = !this.securityHandlers
       ? defaultSecurityHandler
       : null;
-
     const promises = this.securities.map(async (s) => {
-      try {
-        if (Util.isEmptyObject(s)) {
-          // anonumous security
-          return { success: true };
-        }
-        const securityKey = Object.keys(s)[0];
-        const scheme = this.securitySchemes[securityKey];
-        const handler = this.securityHandlers?.[securityKey] ?? fallbackHandler;
-        const scopesTmp = s[securityKey];
-        const scopes = Array.isArray(scopesTmp) ? scopesTmp : [];
-
-        if (!scheme) {
-          const message = `components.securitySchemes.${securityKey} does not exist`;
-          throw new InternalServerError({ message });
-        }
-        if (!scheme.hasOwnProperty('type')) {
-          const message = `components.securitySchemes.${securityKey} must have property 'type'`;
-          throw new InternalServerError({ message });
-        }
-        if (!handler) {
-          const message = `a security handler for '${securityKey}' does not exist`;
-          throw new InternalServerError({ message });
-        }
-
-        new AuthValidator(req, scheme, scopes).validate();
-
-        // expected handler results are:
-        // - throw exception,
-        // - return true,
-        // - return Promise<true>,
-        // - return false,
-        // - return Promise<false>
-        // everything else should be treated as false
-        const securityScheme = <OpenAPIV3.SecuritySchemeObject>scheme;
-        const success = await handler(req, scopes, securityScheme);
-        if (success === true) {
-          return { success };
-        } else {
-          throw Error();
-        }
-      } catch (e) {
-        return {
-          success: false,
-          status: e.status ?? 401,
-          error: e,
-        };
+      if (Util.isEmptyObject(s)) {
+        // anonumous security
+        return [{ success: true }];
       }
+      return Promise.all(
+        Object.keys(s).map(async (securityKey) => {
+          var _a, _b, _c;
+          try {
+            const scheme = this.securitySchemes[securityKey];
+            const handler =
+              (_b =
+                (_a = this.securityHandlers) === null || _a === void 0
+                  ? void 0
+                  : _a[securityKey]) !== null && _b !== void 0
+                ? _b
+                : fallbackHandler;
+            const scopesTmp = s[securityKey];
+            const scopes = Array.isArray(scopesTmp) ? scopesTmp : [];
+            if (!scheme) {
+              const message = `components.securitySchemes.${securityKey} does not exist`;
+              throw new InternalServerError({ message });
+            }
+            if (!scheme.hasOwnProperty('type')) {
+              const message = `components.securitySchemes.${securityKey} must have property 'type'`;
+              throw new InternalServerError({ message });
+            }
+            if (!handler) {
+              const message = `a security handler for '${securityKey}' does not exist`;
+              throw new InternalServerError({ message });
+            }
+            new AuthValidator(req, scheme, scopes).validate();
+            // expected handler results are:
+            // - throw exception,
+            // - return true,
+            // - return Promise<true>,
+            // - return false,
+            // - return Promise<false>
+            // everything else should be treated as false
+            const securityScheme = <OpenAPIV3.SecuritySchemeObject>scheme;
+            const success = await handler(req, scopes, securityScheme);
+            if (success === true) {
+              return { success };
+            } else {
+              throw Error();
+            }
+          } catch (e) {
+            return {
+              success: false,
+              status: (_c = e.status) !== null && _c !== void 0 ? _c : 401,
+              error: e,
+            };
+          }
+        }),
+      );
     });
     return Promise.all(promises);
   }
@@ -252,8 +263,6 @@ class AuthValidator {
       if (type === 'basic' && !authHeader.includes('basic')) {
         throw Error(`Authorization header with scheme 'Basic' required`);
       }
-
-      this.dissallowScopes();
     }
   }
 
@@ -273,17 +282,6 @@ class AuthValidator {
           throw Error(`cookie '${scheme.name}' required`);
         }
       }
-
-      this.dissallowScopes();
-    }
-  }
-
-  private dissallowScopes(): void {
-    if (this.scopes.length > 0) {
-      // https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.2.md#security-requirement-object
-      throw new InternalServerError({
-        message: "scopes array must be empty for security type 'http'",
-      });
     }
   }
 }

@@ -1,7 +1,6 @@
 import { OpenAPIV3 } from './types';
 import { Spec, RouteMetadata } from './openapi.spec.loader';
 
-
 export interface RoutePair {
   expressRoute: string;
   openApiRoute: string;
@@ -12,9 +11,9 @@ export class OpenApiContext {
   public readonly openApiRouteMap = {};
   public readonly routes: RouteMetadata[] = [];
   private readonly basePaths: string[];
-  private readonly ignorePaths: RegExp;
+  private readonly ignorePaths: RegExp | Function;
 
-  constructor(spec: Spec, ignorePaths: RegExp) {
+  constructor(spec: Spec, ignorePaths: RegExp | Function) {
     this.apiDoc = spec.apiDoc;
     this.basePaths = spec.basePaths;
     this.routes = spec.routes;
@@ -32,7 +31,7 @@ export class OpenApiContext {
   }
 
   public shouldIgnoreRoute(path: string) {
-    return this.ignorePaths?.test(path);
+    return typeof this.ignorePaths === 'function' ? this.ignorePaths(path) : this.ignorePaths?.test(path);
   }
 
   public routePair(route: string): RoutePair {
@@ -56,13 +55,17 @@ export class OpenApiContext {
   // side-effecting builds express/openapi route maps
   private buildRouteMaps(routes: RouteMetadata[]): void {
     for (const route of routes) {
-      const routeMethods = this.expressRouteMap[route.expressRoute];
+      const { basePath, expressRoute, openApiRoute, method } = route;
+      const routeMethods = this.expressRouteMap[expressRoute];
+      const pathKey = openApiRoute.substring(basePath.length);
+      const schema = this.apiDoc.paths[pathKey][method.toLowerCase()];
       if (routeMethods) {
-        routeMethods[route.method] = route.schema;
+        routeMethods[route.method] = schema;
       } else {
-        const { schema, openApiRoute, expressRoute } = route;
+        const { basePath, openApiRoute, expressRoute } = route;
         const routeMethod = { [route.method]: schema };
         const routeDetails = {
+          basePath,
           _openApiRoute: openApiRoute,
           _expressRoute: expressRoute,
           ...routeMethod,

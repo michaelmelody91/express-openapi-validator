@@ -3,6 +3,7 @@
 /assets
 /examples
 /example
+/docs
 node_modules
 /src
 /test
@@ -35,3 +36,5 @@ secrets.zip.enc
 README.md
 tsconfig.json
 TODO.md
+build.sh
+launch.json

@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import * as jsYaml from 'js-yaml';
 import * as path from 'path';
 import * as $RefParser from 'json-schema-ref-parser';
 import { OpenAPISchemaValidator } from './openapi.schema.validator';
@@ -23,24 +22,23 @@ export class OpenAPIFramework {
     visitor: OpenAPIFrameworkVisitor,
   ): Promise<OpenAPIFrameworkInit> {
     const args = this.args;
-    const apiDoc = await this.copy(
-      await this.loadSpec(args.apiDoc, args.$refParser),
-    );
+    const apiDoc = await this.loadSpec(args.apiDoc, args.$refParser);
+
     const basePathObs = this.getBasePathsFromServers(apiDoc.servers);
     const basePaths = Array.from(
       basePathObs.reduce((acc, bp) => {
-        bp.all().forEach(path => acc.add(path));
+        bp.all().forEach((path) => acc.add(path));
         return acc;
       }, new Set<string>()),
     );
-    const validateApiDoc =
-      'validateApiDoc' in args ? !!args.validateApiDoc : true;
+    const validateApiSpec =
+      'validateApiSpec' in args ? !!args.validateApiSpec : true;
     const validator = new OpenAPISchemaValidator({
       version: apiDoc.openapi,
       // extensions: this.apiDoc[`x-${args.name}-schema-extension`],
     });
 
-    if (validateApiDoc) {
+    if (validateApiSpec) {
       const apiDocValidation = validator.validate(apiDoc);
 
       if (apiDocValidation.errors.length) {
@@ -55,7 +53,7 @@ export class OpenAPIFramework {
       }
     }
     const getApiDoc = () => {
-      return this.copy(apiDoc);
+      return apiDoc;
     };
 
     this.sortApiDocTags(apiDoc);
@@ -81,22 +79,12 @@ export class OpenAPIFramework {
     // We need this workaround ( use '$RefParser.dereference' instead of '$RefParser.bundle' ) if asked by user
     if (typeof filePath === 'string') {
       const origCwd = process.cwd();
-      const specDir = path.resolve(origCwd, path.dirname(filePath));
       const absolutePath = path.resolve(origCwd, filePath);
       if (fs.existsSync(absolutePath)) {
         // Get document, or throw exception on error
-        try {
-          process.chdir(specDir);
-          const docWithRefs = jsYaml.safeLoad(
-            fs.readFileSync(absolutePath, 'utf8'),
-            { json: true },
-          );
-          return $refParser.mode === 'dereference'
-            ? $RefParser.dereference(docWithRefs)
-            : $RefParser.bundle(docWithRefs);
-        } finally {
-          process.chdir(origCwd);
-        }
+        return $refParser.mode === 'dereference'
+          ? $RefParser.dereference(absolutePath)
+          : $RefParser.bundle(absolutePath);
       } else {
         throw new Error(
           `${this.loggingPrefix}spec could not be read at ${filePath}`,
@@ -106,10 +94,6 @@ export class OpenAPIFramework {
     return $refParser.mode === 'dereference'
       ? $RefParser.dereference(filePath)
       : $RefParser.bundle(filePath);
-  }
-
-  private copy<T>(obj: T): T {
-    return JSON.parse(JSON.stringify(obj));
   }
 
   private sortApiDocTags(apiDoc: OpenAPIV3.Document): void {
@@ -129,8 +113,8 @@ export class OpenAPIFramework {
     const basePathsMap: { [key: string]: BasePath } = {};
     for (const server of servers) {
       const basePath = new BasePath(server);
-      basePathsMap[basePath.path] = basePath;
+      basePathsMap[basePath.expressPath] = basePath;
     }
-    return Object.keys(basePathsMap).map(key => basePathsMap[key]);
+    return Object.keys(basePathsMap).map((key) => basePathsMap[key]);
   }
 }

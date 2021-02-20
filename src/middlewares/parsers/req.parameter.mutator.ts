@@ -1,6 +1,5 @@
 import { Request } from 'express';
 import { Ajv } from 'ajv';
-import * as ajv from 'ajv';
 import {
   OpenAPIV3,
   OpenApiRequest,
@@ -34,7 +33,6 @@ const REQUEST_FIELDS = {
 };
 
 type Schema = ReferenceObject | SchemaObject;
-type Parameter = ReferenceObject | ParameterObject;
 
 /**
  * A class top parse and mutate the incoming request parameters according to the openapi spec.
@@ -69,7 +67,7 @@ export class RequestParameterMutator {
       url.parse(req.originalUrl).query,
     );
 
-    parameters.forEach((p) => {
+    (parameters || []).forEach((p) => {
       const parameter = dereferenceParameter(this._apiDocs, p);
       const { name, schema } = normalizeParameter(this.ajv, parameter);
 
@@ -148,7 +146,7 @@ export class RequestParameterMutator {
     const properties = hasXOf
       ? xOfProperties(schema)
       : type === 'object'
-      ? Object.keys(schema.properties)
+      ? Object.keys(schema.properties ?? {})
       : [];
 
     this.explodedJsonObjectAndMutateRequest(
@@ -299,7 +297,7 @@ export class RequestParameterMutator {
     if (!vs) return;
     for (const v of vs) {
       if (v?.match(RESERVED_CHARS)) {
-        const message = `Parameter '${name}' must be url encoded. It's value may not contain reserved characters.`;
+        const message = `Parameter '${name}' must be url encoded. Its value may not contain reserved characters.`;
         throw new BadRequest({ path: `.query.${name}`, message: message });
       }
     }

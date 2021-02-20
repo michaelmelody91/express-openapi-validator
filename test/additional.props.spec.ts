@@ -15,7 +15,7 @@ describe(packageJson.name, () => {
       'resources',
       'additional.properties.yaml',
     );
-    app = await createApp({ apiSpec }, 3005, app =>
+    app = await createApp({ apiSpec }, 3005, (app) =>
       app.use(
         `${app.basePath}/additional_props`,
         express
@@ -30,6 +30,24 @@ describe(packageJson.name, () => {
     app.server.close();
   });
 
+  it('should return 400 if additionalProperties=false, and type is invalid', async () =>
+    request(app)
+      .post(`${app.basePath}/additional_props/false`)
+      .send({
+        name: 'test',
+        extra_prop: 'test',
+        age: '11',
+      })
+      .expect(400)
+      .then((r) => {
+        expect(r.body.errors).to.be.an('array');
+        expect(r.body.errors).to.have.length(2);
+        const m1 = r.body.errors[0].message;
+        expect(m1).to.equal('should NOT have additional properties');
+        const m2 = r.body.errors[1].message;
+        expect(m2).to.equal('should be number');
+      }));
+
   it('should return 400 if additionalProperties=false, but extra props sent', async () =>
     request(app)
       .post(`${app.basePath}/additional_props/false`)
@@ -38,7 +56,7 @@ describe(packageJson.name, () => {
         extra_prop: 'test',
       })
       .expect(400)
-      .then(r => {
+      .then((r) => {
         expect(r.body.errors).to.be.an('array');
         expect(r.body.errors).to.have.length(1);
         const message = r.body.errors[0].message;
